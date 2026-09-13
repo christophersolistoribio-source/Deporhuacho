@@ -437,9 +437,9 @@
                     </div>
 
                     <div>
-                        <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2"><i class="fa-solid fa-key text-[#d4ff00] mr-1"></i> Código Secreto de Dueño</label>
-                        <input type="password" id="ownerSecretInput" placeholder="Ej. 1234 o código de local" class="w-full bg-[#030706] border border-[#1b3026] rounded-xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-[#d4ff00]">
-                        <p class="text-[11px] text-slate-500 mt-1">Código de prueba: <strong>1234</strong> (Sirve para cualquiera de los 5 locales).</p>
+                        <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2"><i class="fa-solid fa-key text-[#d4ff00] mr-1"></i> Contraseña Secreta del Local</label>
+                        <input type="password" id="ownerSecretInput" placeholder="Introduce la clave asignada a tu local" class="w-full bg-[#030706] border border-[#1b3026] rounded-xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-[#d4ff00]">
+                        <p class="text-[11px] text-slate-500 mt-1">Claves de prueba actuales: <strong>1010</strong> (Del Piero), <strong>2020</strong> (La Rabona), <strong>3030</strong> (De Taquito), <strong>4040</strong> (La Quinta), <strong>5050</strong> (El Veloz).</p>
                     </div>
 
                     <button onclick="loginOwnerPortal()" class="w-full bg-gradient-to-r from-[#d4ff00] to-[#00ff66] text-black font-extrabold py-4 rounded-xl hover:opacity-95 transition shadow-lime-glow text-sm flex items-center justify-center gap-2">
@@ -577,7 +577,7 @@
                     </div>
                 </div>
 
-                <!-- NEW: Payment Method Selection -->
+                <!-- Payment Method Selection -->
                 <div>
                     <label class="block text-xs font-bold text-slate-300 mb-2"><i class="fa-solid fa-wallet text-[#d4ff00] mr-1"></i> Método de Pago</label>
                     <div class="grid grid-cols-2 gap-3">
@@ -652,19 +652,24 @@
 
     <!-- JAVASCRIPT LOGIC -->
     <script>
-        // State Management
+        // State Management - Sin canchas falsas, limpio para producción piloto
         let appState = {
             currentUser: null,
-            reservations: [
-                { id: 1, complexId: 'del-piero', complexName: 'Cancha Deportiva Del Piero', date: '2026-09-15', hour: '19:00 - 20:00', clientName: 'Carlos Mendoza', phone: '987654321', price: 60, type: 'web', paymentMethod: 'Yape / Plin' },
-                { id: 2, complexId: 'la-rabona', complexName: 'Complejo Deportivo La Rabona', date: '2026-09-16', hour: '20:00 - 21:00', clientName: 'Renzo Silva', phone: '912345678', price: 80, type: 'web', paymentMethod: 'Efectivo' }
-            ],
+            reservations: [],
             complexPhones: {
                 'del-piero': '987123456',
                 'la-rabona': '912345678',
                 'de-taquito': '993322111',
                 'la-quinta': '988776655',
                 'el-veloz': '955443322'
+            },
+            // Contraseñas individuales y seguras para cada dueño
+            ownerPasswords: {
+                'del-piero': '1010',
+                'la-rabona': '2020',
+                'de-taquito': '3030',
+                'la-quinta': '4040',
+                'el-veloz': '5050'
             },
             authMode: 'login'
         };
@@ -733,14 +738,12 @@
             });
         }
 
-        // Booking Modal & Multi-hour generation
         function openBookingModal(id, name, price, address) {
             document.getElementById('bookingComplexId').value = id;
             document.getElementById('bookingComplexPrice').value = price;
             document.getElementById('modalComplexName').innerText = name;
             document.getElementById('modalComplexAddress').innerText = address;
             
-            // Default tomorrow date if empty
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
             document.getElementById('bookingDate').value = tomorrow.toISOString().split('T')[0];
@@ -762,7 +765,6 @@
             const date = document.getElementById('bookingDate').value;
             const container = document.getElementById('hoursCheckboxContainer');
 
-            // Find already booked hours for this complex on this date
             const bookedHoursOnDate = appState.reservations
                 .filter(r => r.complexId === complexId && r.date === date)
                 .map(r => r.hour);
@@ -817,7 +819,6 @@
                 return;
             }
 
-            // Create reservation for each selected hour
             checkboxes.forEach(cb => {
                 const newReservation = {
                     id: Date.now() + Math.random(),
@@ -845,7 +846,6 @@
             document.getElementById('bookingForm').reset();
         }
 
-        // Auth Modal (Customer)
         function openAuthModal(mode) {
             appState.authMode = mode;
             const title = document.getElementById('authModalTitle');
@@ -926,12 +926,13 @@
             }
         }
 
-        // Owner Portal Functions
+        // Owner Portal Functions with Individual Password Validation
         function loginOwnerPortal() {
             const complexId = document.getElementById('ownerSelectComplejo').value;
             const secret = document.getElementById('ownerSecretInput').value.trim();
+            const correctPassword = appState.ownerPasswords[complexId];
 
-            if(secret === '1234' || secret.length > 2) {
+            if(secret === correctPassword) {
                 const complexName = complexNamesMap[complexId];
                 appState.currentUser = {
                     name: 'Dueño',
@@ -943,7 +944,7 @@
                 updateAuthUI();
                 renderOwnerDashboard(complexId, complexName);
             } else {
-                alert('Código secreto incorrecto. Usa "1234" para ingresar.');
+                alert('Contraseña incorrecta para este complejo. Verifica el código asignado.');
             }
         }
 
@@ -952,10 +953,8 @@
             document.getElementById('ownerDashboardContent').classList.remove('hidden');
             document.getElementById('dashboardOwnerTitle').innerText = complexName;
 
-            // Load current phone
             document.getElementById('ownerPhoneInput').value = appState.complexPhones[complexId] || '';
 
-            // Filter reservations for this complex
             const complexReservations = appState.reservations.filter(r => r.complexId === complexId);
             
             document.getElementById('dashTotalRes').innerText = complexReservations.length;
@@ -1008,7 +1007,6 @@
             const date = document.getElementById('blockDate').value;
             const hour = document.getElementById('blockHour').value;
 
-            // Check if already booked
             const exists = appState.reservations.some(r => r.complexId === complexId && r.date === date && r.hour === hour);
             if(exists) {
                 alert('Este horario ya se encuentra ocupado o bloqueado.');
